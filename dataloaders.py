@@ -1,4 +1,7 @@
 from torch.utils.data import Dataset, DataLoader
+import torch
+import pandas as pd
+import numpy as np
 
 class TablePandasDataset(Dataset):
     """Pandas dataset.    """
@@ -32,11 +35,18 @@ def get_dataloaders(data_pd,cov_list, utility_tag='Target',shuffle=True, num_wor
 
 def import_data(rna_filename, motif_filename, peaks_filename):
     rna = pd.read_csv(rna_filename, index_col=[0]).rename({'Unnamed: 0': "Gene"}, axis=1).T
-    motif = pd.read_csv(motif_filename, index_col=[0])motif.rename({'Unnamed: 0': "Gene"}, axis=1).T
-    atac = pd.read_csv(peaks_filename).rename({'Unamed: 0': 'Gene'}, axis=1).T
+    motif = pd.read_csv(motif_filename, index_col=[0]).rename({'Unnamed: 0': "Gene"}, axis=1).T
+    atac = pd.read_csv(peaks_filename, index_col=[0]).rename({'Unnamed: 0': 'Gene'}, axis=1).T
     multiomics = pd.concat([rna,motif,atac], axis=1)
-    multiomics["Target"] = rna.apply(lambda row: rna_proportion(row), axis=1)
-    return multiomics
+    # multiomics = multiomics.sample(frac=1).reset_index(drop=True)
+    multiomics["Target"] = rna.apply(lambda row: rna_proportion(row), axis=1).to_numpy()
+    print(multiomics.index)
+
+    idx_test = list(range(int(multiomics.shape[0] * .8) + 1, multiomics.shape[0]))
+    set_tag = ['test' if i in idx_test else 'train' for i in range(len(multiomics))]
+    multiomics["dataset"] = set_tag
+    HIVcolumns = rna.columns[-6:]
+    return multiomics, HIVcolumns.append(pd.Index(["Target"]))
     
 def rna_proportion(row):
     hivRNA = row[-6:].to_numpy()
